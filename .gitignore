@@ -1,0 +1,16 @@
+# 构建产物
+bin/
+obj/
+dist/
+selftest-work/
+selftest.log
+
+# 开发过程产生的临时文件
+args.log
+smoke*.png
+smoke.err
+probe-result.txt
+tools/*.exe
+*.user
+*.suo
+.vs/

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -62,13 +63,67 @@ namespace ShotTool
             {
                 if (!createdNew)
                 {
-                    // 已经在跑：把已有窗口叫出来，然后退出
-                    Native.PostMessage(Native.HWND_BROADCAST, ShowWindowMessage, IntPtr.Zero, IntPtr.Zero);
+                    ActivateRunningInstance();
                     return;
                 }
 
                 Application.Run(new MainForm(AppConfig.Load(), false));
             }
+        }
+
+        /// <summary>
+        /// 已经有实例在跑：唤醒它。如果是另一个位置的副本在跑，先说清楚，
+        /// 否则用户会以为「换了目录还是没反应」。
+        /// </summary>
+        private static void ActivateRunningInstance()
+        {
+            string other = OtherInstancePath();
+            string self = Application.ExecutablePath;
+
+            if (other != null && !string.Equals(other, self, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "截图工具已经在另一个位置运行：\n\n" + other +
+                    "\n\n如果那个窗口用不了（例如无法创建文件夹），请到托盘图标上右键退出它，再启动当前这份。",
+                    "截图工具",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            Native.PostMessage(Native.HWND_BROADCAST, ShowWindowMessage, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        private static string OtherInstancePath()
+        {
+            try
+            {
+                int selfId = Process.GetCurrentProcess().Id;
+                foreach (Process process in Process.GetProcessesByName("ShotTool"))
+                {
+                    try
+                    {
+                        if (process.Id == selfId)
+                        {
+                            continue;
+                        }
+
+                        return process.MainModule.FileName;
+                    }
+                    catch
+                    {
+                        // 拿不到路径就算未知，走原来的静默唤醒
+                    }
+                    finally
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return null;
         }
 
         private static void RunOverlaySmoke()
